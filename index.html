@@ -142,27 +142,26 @@
       to { transform: rotate(360deg); }
     }
 
-    .copied-box {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #fff;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.15);
-      padding: 10px 15px;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      z-index: 999;
-      border-left: 4px solid #007bff;
-      animation: fadeIn 0.3s ease-in-out;
-    }
+    /* Replace your .copied-box style with this */
+.copied-box {
+  position: absolute;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+  padding: 10px 15px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 9999;
+  border-left: 4px solid #007bff;
+  animation: fadeIn 0.3s ease-in-out;
+}
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translate(-50%, 20px); }
-      to { opacity: 1; transform: translate(-50%, 0); }
-    }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 
     .copied-text {
       font-weight: bold;
@@ -247,99 +246,108 @@
   </div>
 
   <script>
-    let allIcons = [];
-    let lastCopied = '';
+  let allIcons = [];
+  let lastCopied = '';
+  const iconsContainer = document.getElementById('iconsContainer');
+  const searchInput = document.getElementById('searchInput');
+  const totalIconsSpan = document.getElementById('totalIcons');
+  const visibleIconsSpan = document.getElementById('visibleIcons');
+  const copiedBox = document.getElementById('copiedBox');
+  const copiedText = document.getElementById('copiedText');
 
-    const iconsContainer = document.getElementById('iconsContainer');
-    const searchInput = document.getElementById('searchInput');
-    const totalIconsSpan = document.getElementById('totalIcons');
-    const visibleIconsSpan = document.getElementById('visibleIcons');
-    const copiedBox = document.getElementById('copiedBox');
-    const copiedText = document.getElementById('copiedText');
+  const getClassName = (style, name) => {
+    const prefixes = { solid: 'fas', regular: 'far', brands: 'fab' };
+    return `${prefixes[style]} fa-${name}`;
+  };
 
-    const getClassName = (style, name) => {
-      const prefixes = { solid: 'fas', regular: 'far', brands: 'fab' };
-      return `${prefixes[style]} fa-${name}`;
-    };
+  const fetchIcons = async () => {
+    try {
+      const res = await fetch('https://raw.githubusercontent.com/FortAwesome/Font-Awesome/refs/heads/6.x/metadata/icons.json');
+      const data = await res.json();
 
-    const fetchIcons = async () => {
-      try {
-        const res = await fetch('https://raw.githubusercontent.com/FortAwesome/Font-Awesome/refs/heads/6.x/metadata/icons.json');
-        const data = await res.json();
+      allIcons = Object.entries(data)
+        .filter(([, icon]) => icon.free?.length)
+        .map(([name, icon]) => ({
+          name,
+          style: icon.free[0],
+          className: getClassName(icon.free[0], name)
+        }));
 
-        allIcons = Object.entries(data)
-          .filter(([, icon]) => icon.free?.length)
-          .map(([name, icon]) => ({
-            name,
-            style: icon.free[0],
-            className: getClassName(icon.free[0], name)
-          }));
+      totalIconsSpan.textContent = `Total icons: ${allIcons.length}`;
+      renderIcons(allIcons);
+      updateVisibleCount(allIcons.length);
+    } catch (err) {
+      iconsContainer.innerHTML = `
+        <div class="message">
+          <i class="fas fa-exclamation-triangle" style="font-size: 3rem;"></i>
+          <p>Error loading icons. Please try again later.</p>
+          <p>${err.message}</p>
+        </div>`;
+      console.error(err);
+    }
+  };
 
-        totalIconsSpan.textContent = `Total icons: ${allIcons.length}`;
-        renderIcons(allIcons);
-        updateVisibleCount(allIcons.length);
-      } catch (err) {
-        iconsContainer.innerHTML = `
-          <div class="message">
-            <i class="fas fa-exclamation-triangle" style="font-size: 3rem;"></i>
-            <p>Error loading icons. Please try again later.</p>
-            <p>${err.message}</p>
-          </div>
-        `;
-        console.error(err);
-      }
-    };
+  const renderIcons = icons => {
+    if (!icons.length) {
+      iconsContainer.innerHTML = '<div class="no-results">No icons match your search.</div>';
+      return;
+    }
 
-    const renderIcons = icons => {
-      if (!icons.length) {
-        iconsContainer.innerHTML = '<div class="no-results">No icons match your search.</div>';
-        return;
-      }
-
-      iconsContainer.innerHTML = '';
-      icons.forEach(icon => {
-        const el = document.createElement('i');
-        el.className = `${icon.className} icon-item`;
-        el.setAttribute('data-tooltip', icon.name);
-        el.addEventListener('click', () => {
-          lastCopied = icon.name;
-          copyToClipboard(icon.name);
-        });
-        iconsContainer.appendChild(el);
+    iconsContainer.innerHTML = '';
+    icons.forEach(icon => {
+      const el = document.createElement('i');
+      el.className = `${icon.className} icon-item`;
+      el.setAttribute('data-tooltip', icon.name);
+      el.addEventListener('click', e => {
+        lastCopied = icon.name;
+        copyToClipboard(icon.name);
+        showCopiedBox(el);
+        e.stopPropagation(); // prevent bubbling to document
       });
-    };
-
-    const updateVisibleCount = count => {
-      visibleIconsSpan.textContent = `Visible: ${count}`;
-    };
-
-    const copyToClipboard = (text) => {
-      navigator.clipboard.writeText(text).then(() => {
-        copiedText.textContent = text;
-        copiedBox.style.display = 'flex';
-      });
-    };
-
-    // Hide copied box when clicking outside
-    document.addEventListener('click', (e) => {
-      if (copiedBox.style.display !== 'none' && !copiedBox.contains(e.target) && !e.target.classList.contains('icon-item')) {
-        copiedBox.style.display = 'none';
-      }
+      iconsContainer.appendChild(el);
     });
+  };
 
-    // Close button
-    document.querySelector('.close-btn').addEventListener('click', () => {
+  const updateVisibleCount = count => {
+    visibleIconsSpan.textContent = `Visible: ${count}`;
+  };
+
+  const copyToClipboard = text => {
+    navigator.clipboard.writeText(text).then(() => {
+      copiedText.textContent = text;
+    });
+  };
+
+  const showCopiedBox = iconEl => {
+    // Position copied box below icon
+    const rect = iconEl.getBoundingClientRect();
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+
+    copiedBox.style.display = 'flex';
+    copiedBox.style.top = `${rect.bottom + scrollTop + 8}px`;
+    copiedBox.style.left = `${rect.left + scrollLeft}px`;
+  };
+
+  document.addEventListener('click', e => {
+    if (!copiedBox.contains(e.target)) {
       copiedBox.style.display = 'none';
-    });
+    }
+  });
 
-    searchInput.addEventListener('input', () => {
-      const term = searchInput.value.trim().toLowerCase();
-      const filtered = allIcons.filter(icon => icon.name.toLowerCase().includes(term));
-      renderIcons(filtered);
-      updateVisibleCount(filtered.length);
-    });
+  document.querySelector('.close-btn').addEventListener('click', () => {
+    copiedBox.style.display = 'none';
+  });
 
-    fetchIcons();
-  </script>
+  searchInput.addEventListener('input', () => {
+    const term = searchInput.value.trim().toLowerCase();
+    const filtered = allIcons.filter(icon => icon.name.toLowerCase().includes(term));
+    renderIcons(filtered);
+    updateVisibleCount(filtered.length);
+  });
+
+  fetchIcons();
+</script>
+
 </body>
 </html>
